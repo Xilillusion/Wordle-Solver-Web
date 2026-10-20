@@ -94,8 +94,7 @@ button:not(:disabled):active {
 }
 
 button:focus-visible,
-select:focus-visible,
-.tile:focus-visible {
+select:focus-visible {
   outline: 3px solid #7bcfa8;
   outline-offset: 3px;
 }
@@ -231,11 +230,6 @@ select:focus-visible,
 
 .status.error {
   color: #a63131;
-}
-
-.status.success {
-  color: #13764f;
-  font-weight: 700;
 }
 
 footer {

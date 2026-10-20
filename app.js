@@ -1,13 +1,13 @@
-const SOLVERS = [
+const SOLVERS = new Set([
   "Bayesian",
   "Binary",
   "Greedy",
   "LimitBayesian",
   "LimitMinimax",
   "Minimax",
-];
-const COLORS = ["gray", "yellow", "green"];
-const COLOR_VALUES = { gray: 0, yellow: 1, green: 2 };
+]);
+const FEEDBACK_COLORS = ["gray", "yellow", "green"];
+const FEEDBACK_VALUES = { gray: 0, yellow: 1, green: 2 };
 const WIN_RESULT = 242;
 const treeDirectory = new URL("./trees/", document.currentScript.src);
 
@@ -23,9 +23,16 @@ let activeSolver = null;
 let attempt = 0;
 let finished = false;
 
-function setStatus(message, kind = "") {
+function setStatus(message, isError = false) {
   statusLabel.textContent = message;
-  statusLabel.className = `status ${kind}`.trim();
+  statusLabel.classList.toggle("error", isError);
+}
+
+function errorMessage(error) {
+  if (error instanceof TypeError) {
+    return `Could not fetch the decision tree. Check the server connection and try again. (${error.message})`;
+  }
+  return error instanceof Error ? error.message : String(error);
 }
 
 function isTreeNode(node) {
@@ -40,67 +47,82 @@ function isTreeNode(node) {
 
 function feedbackResult() {
   return [...guessContainer.querySelectorAll(".tile")].reduce(
-    (result, tile, index) => result + COLOR_VALUES[tile.dataset.color] * (3 ** index),
+    (result, tile, index) => result + FEEDBACK_VALUES[tile.dataset.color] * (3 ** index),
     0,
   );
 }
 
 function renderGuess(guess) {
   guessContainer.replaceChildren();
+
   for (let index = 0; index < guess.length; index += 1) {
     const tile = document.createElement("button");
     tile.type = "button";
     tile.className = "tile gray";
     tile.textContent = guess[index];
     tile.dataset.color = "gray";
-    tile.setAttribute("aria-label", `Position ${index + 1}: gray`);
-    tile.addEventListener("click", () => {
-      const nextColor = COLORS[(COLORS.indexOf(tile.dataset.color) + 1) % COLORS.length];
-      tile.dataset.color = nextColor;
-      tile.className = `tile ${nextColor}`;
-      tile.setAttribute("aria-label", `Position ${index + 1}: ${nextColor}`);
-    });
+    updateTileLabel(tile, index);
     guessContainer.append(tile);
   }
+}
+
+function updateTileLabel(tile, index) {
+  tile.setAttribute("aria-label", `Position ${index + 1}: ${tile.dataset.color}`);
+}
+
+function cycleTileColor(event) {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+
+  const tile = event.target.closest(".tile");
+  if (!(tile instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const colorIndex = FEEDBACK_COLORS.indexOf(tile.dataset.color);
+  const nextColor = FEEDBACK_COLORS[(colorIndex + 1) % FEEDBACK_COLORS.length];
+  tile.dataset.color = nextColor;
+  tile.className = `tile ${nextColor}`;
+  updateTileLabel(tile, [...guessContainer.children].indexOf(tile));
+}
+
+async function loadTree(solver) {
+  if (!SOLVERS.has(solver)) {
+    throw new Error("That decision tree is not available.");
+  }
+  if (window.location.protocol === "file:") {
+    throw new Error(
+      "Browsers cannot fetch decision trees when this page is opened directly. Start a local web server and open the app over HTTP (see README).",
+    );
+  }
+
+  const response = await fetch(new URL(`${solver}.json`, treeDirectory));
+  if (!response.ok) {
+    throw new Error(`Could not load ${solver}.json (HTTP ${response.status}).`);
+  }
+
+  const tree = await response.json();
+  if (!isTreeNode(tree)) {
+    throw new Error(`${solver}.json does not contain a valid decision tree.`);
+  }
+  return tree;
 }
 
 async function startGame() {
   startButton.disabled = true;
   submitButton.disabled = true;
-  setStatus("Loading saved decision tree...");
+  setStatus("");
 
   try {
     const solver = solverSelect.value;
-    if (!SOLVERS.includes(solver)) {
-      throw new Error("That decision tree is not available.");
-    }
-    if (window.location.protocol === "file:") {
-      throw new Error(
-        "Browsers cannot fetch decision trees when this page is opened directly. Start a local web server and open the app over HTTP (see README).",
-      );
-    }
-
-    const response = await fetch(new URL(`${solver}.json`, treeDirectory));
-    if (!response.ok) {
-      throw new Error(`Could not load ${solver}.json (HTTP ${response.status}).`);
-    }
-
-    const tree = await response.json();
-    if (!isTreeNode(tree)) {
-      throw new Error(`${solver}.json does not contain a valid decision tree.`);
-    }
-
-    currentNode = tree;
+    currentNode = await loadTree(solver);
     activeSolver = solver;
     attempt = 1;
     finished = false;
     renderCurrentNode();
-    setStatus("");
   } catch (error) {
-    const message = error instanceof TypeError
-      ? `Could not fetch the decision tree. Check the server connection and try again. (${error.message})`
-      : error.message;
-    setStatus(message, "error");
+    setStatus(errorMessage(error), true);
   } finally {
     startButton.disabled = false;
     submitButton.disabled = currentNode === null || finished;
@@ -126,33 +148,25 @@ function submitFeedback() {
     finished = true;
     submitButton.disabled = true;
     attemptLabel.textContent = `Solved in ${attempt} ${attempt === 1 ? "guess" : "guesses"}!`;
-    setStatus("Nice work!", "success");
     return;
   }
 
   const nextNode = currentNode.children[String(result)];
   if (nextNode === undefined) {
-    setStatus(
-      `The ${activeSolver} tree has no saved branch for this feedback. This site does not calculate missing guesses.`,
-      "error",
-    );
+    setStatus(`The ${activeSolver} tree has no saved branch for this feedback. This site does not calculate missing guesses.`, true);
     return;
   }
   if (!isTreeNode(nextNode)) {
-    setStatus("The saved tree contains an invalid branch.", "error");
+    setStatus("The saved tree contains an invalid branch.", true);
     return;
   }
 
   currentNode = nextNode;
   attempt += 1;
-  try {
-    renderCurrentNode();
-    setStatus("");
-  } catch (error) {
-    submitButton.disabled = true;
-    setStatus(error.message, "error");
-  }
+  renderCurrentNode();
+  setStatus("");
 }
 
+guessContainer.addEventListener("click", cycleTileColor);
 startButton.addEventListener("click", startGame);
 submitButton.addEventListener("click", submitFeedback);
