@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7f9">
+  <title>Wordle Solver</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="card">
+    <header>
+      <p class="eyebrow">TREE-BASED WORDLE ASSISTANT</p>
+      <h1>Wordle Solver</h1>
+      <p class="intro">Choose a saved solver tree, enter Wordle's tile colors, and follow its next guess.</p>
+    </header>
+
+    <section class="controls" aria-label="Solver controls">
+      <label for="solver">Decision tree</label>
+      <div class="control-row">
+        <select id="solver">
+          <option>Bayesian</option>
+          <option>Binary</option>
+          <option>Greedy</option>
+          <option>LimitBayesian</option>
+          <option>LimitMinimax</option>
+          <option>Minimax</option>
+        </select>
+        <button id="start" class="primary">Start game</button>
+      </div>
+    </section>
+
+    <section class="play" aria-label="Current guess and feedback">
+      <p id="attempt" class="attempt" aria-live="polite">Start a game to get your first guess.</p>
+      <div id="guess" class="guess" aria-label="Current guess"></div>
+      <p class="hint">Click each tile until its color matches Wordle's feedback.</p>
+      <div class="legend" aria-label="Feedback colors">
+        <span><i class="swatch gray"></i>Not in word</span>
+        <span><i class="swatch yellow"></i>Wrong position</span>
+        <span><i class="swatch green"></i>Correct position</span>
+      </div>
+      <button id="submit" class="submit" disabled>Submit feedback</button>
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+    <footer>
+      Runs in your browser. Guesses come only from the saved JSON trees in <code>trees\</code>.
+      <br>
+      <a href="https://github.com/Xilillusion/Wordle-Solver">Xilillusion/Wordle-Solver: Bayesian, Minimax and Heuristic solvers for Wordle</a>
+      ·
+      <a href="https://github.com/Xilillusion/Wordle-Solver-Web">Xilillusion/Wordle-Solver-Web</a>
+    </footer>
+  </main>
+</body>
+</html>
