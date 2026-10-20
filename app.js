@@ -19,6 +19,7 @@ const guessContainer = document.querySelector("#guess");
 const statusLabel = document.querySelector("#status");
 
 let currentNode = null;
+let activeSolver = null;
 let attempt = 0;
 let finished = false;
 
@@ -67,11 +68,6 @@ async function startGame() {
   startButton.disabled = true;
   submitButton.disabled = true;
   setStatus("Loading saved decision tree...");
-  attemptLabel.textContent = "Loading...";
-  guessContainer.replaceChildren();
-  currentNode = null;
-  attempt = 0;
-  finished = false;
 
   try {
     const solver = solverSelect.value;
@@ -95,17 +91,19 @@ async function startGame() {
     }
 
     currentNode = tree;
+    activeSolver = solver;
     attempt = 1;
+    finished = false;
     renderCurrentNode();
-    setStatus(`Using the saved ${solver} tree.`);
+    setStatus("");
   } catch (error) {
-    attemptLabel.textContent = "Could not start the game.";
     const message = error instanceof TypeError
       ? `Could not fetch the decision tree. Check the server connection and try again. (${error.message})`
       : error.message;
     setStatus(message, "error");
   } finally {
     startButton.disabled = false;
+    submitButton.disabled = currentNode === null || finished;
   }
 }
 
@@ -135,7 +133,7 @@ function submitFeedback() {
   const nextNode = currentNode.children[String(result)];
   if (nextNode === undefined) {
     setStatus(
-      `The ${solverSelect.value} tree has no saved branch for this feedback. This site does not calculate missing guesses.`,
+      `The ${activeSolver} tree has no saved branch for this feedback. This site does not calculate missing guesses.`,
       "error",
     );
     return;

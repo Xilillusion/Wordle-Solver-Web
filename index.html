@@ -11,7 +11,6 @@
 <body>
   <main class="card">
     <header>
-      <p class="eyebrow">TREE-BASED WORDLE ASSISTANT</p>
       <h1>Wordle Solver</h1>
       <p class="intro">Choose a saved solver tree, enter Wordle's tile colors, and follow its next guess.</p>
     </header>
@@ -45,11 +44,15 @@
 
     <p id="status" class="status" role="status" aria-live="polite"></p>
     <footer>
-      Runs in your browser. Guesses come only from the saved JSON trees in <code>trees\</code>.
-      <br>
-      <a href="https://github.com/Xilillusion/Wordle-Solver">Xilillusion/Wordle-Solver: Bayesian, Minimax and Heuristic solvers for Wordle</a>
-      ·
-      <a href="https://github.com/Xilillusion/Wordle-Solver-Web">Xilillusion/Wordle-Solver-Web</a>
+      <p class="footer-note">Runs locally using saved decision trees.</p>
+      <nav class="project-links" aria-label="Project links">
+        <a href="https://github.com/Xilillusion/Wordle-Solver" target="_blank" rel="noopener noreferrer">
+          Solver project <span aria-hidden="true">↗</span>
+        </a>
+        <a href="https://github.com/Xilillusion/Wordle-Solver-Web" target="_blank" rel="noopener noreferrer">
+          Web app source <span aria-hidden="true">↗</span>
+        </a>
+      </nav>
     </footer>
   </main>
 </body>
