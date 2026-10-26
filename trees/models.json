@@ -1,0 +1,10 @@
+[
+  { "name": "LookaheadEntropy", "file": "LookaheadEntropy-3.4604.json" },
+  { "name": "BiasedEntropy", "file": "BiasedEntropy-3.4638.json" },
+  { "name": "Entropy", "file": "Entropy-3.4643.json" },
+  { "name": "NaiveEntropy", "file": "NaiveEntropy-3.5275.json" },
+  { "name": "Minimax", "file": "Minimax-3.5738.json" },
+  { "name": "NaiveMinimax", "file": "NaiveMinimax-3.6769.json" },
+  { "name": "BinarySplit", "file": "BinarySplit-3.7142.json" },
+  { "name": "PositionalFreq", "file": "PositionalFreq-3.7202.json" }
+]

@@ -3,6 +3,7 @@
 A browser-based Wordle assistant that follows precomputed decision trees. Choose a solver, start a game, and click each letter tile to match Wordle's gray, yellow, or green feedback. Submit the feedback to get the next saved guess.
 
 The app does not calculate missing guesses: it follows the selected JSON tree in [`trees/`](./trees/).
+The selector is populated from [`trees/models.json`](./trees/models.json). Each tree uses a two-item array for each node: the guess followed by an object mapping feedback results to child nodes. Models are ordered by the numeric score in their filename.
 
 ## Run locally
 
