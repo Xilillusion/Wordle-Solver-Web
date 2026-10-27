@@ -2,7 +2,6 @@ const FEEDBACK_COLORS = ["gray", "yellow", "green"];
 const FEEDBACK_VALUES = { gray: 0, yellow: 1, green: 2 };
 const WIN_RESULT = 242;
 const treeDirectory = new URL("./trees/", document.currentScript.src);
-const modelsUrl = new URL("models.json", treeDirectory);
 
 const solverSelect = document.querySelector("#solver");
 const startButton = document.querySelector("#start");
@@ -81,15 +80,6 @@ function cycleTileColor(event) {
   updateTileLabel(tile, [...guessContainer.children].indexOf(tile));
 }
 
-function isModel(model) {
-  return model !== null
-    && typeof model === "object"
-    && typeof model.name === "string"
-    && model.name.length > 0
-    && typeof model.file === "string"
-    && /^[A-Za-z0-9]+-[0-9]+(?:\.[0-9]+)?\.json$/.test(model.file);
-}
-
 async function loadModels() {
   if (window.location.protocol === "file:") {
     throw new Error(
@@ -97,19 +87,29 @@ async function loadModels() {
     );
   }
 
-  const response = await fetch(modelsUrl);
+  const response = await fetch(treeDirectory);
   if (!response.ok) {
-    throw new Error(`Could not load models.json (HTTP ${response.status}).`);
-  }
-  const catalog = await response.json();
-  if (!Array.isArray(catalog) || !catalog.every(isModel)) {
-    throw new Error("models.json does not contain a valid model catalog.");
+    throw new Error(`Could not list decision trees (HTTP ${response.status}).`);
   }
 
-  return catalog.sort((left, right) => {
-    const score = (model) => Number(model.file.match(/-([0-9]+(?:\.[0-9]+)?)\.json$/)[1]);
-    return score(left) - score(right) || left.name.localeCompare(right.name);
-  });
+  const listing = new DOMParser().parseFromString(await response.text(), "text/html");
+  const models = new Map();
+  for (const link of listing.querySelectorAll("a[href]")) {
+    const url = new URL(link.getAttribute("href"), response.url);
+    if (url.origin !== treeDirectory.origin || !url.pathname.startsWith(treeDirectory.pathname)) {
+      continue;
+    }
+
+    const file = url.pathname.slice(treeDirectory.pathname.length);
+    const match = file.match(/^([A-Za-z0-9]+)-([0-9]+(?:\.[0-9]+)?)\.json$/);
+    if (match) {
+      models.set(file, { name: match[1], file, score: Number(match[2]) });
+    }
+  }
+
+  return [...models.values()].sort(
+    (left, right) => left.score - right.score || left.name.localeCompare(right.name),
+  );
 }
 
 async function loadTree(model) {
@@ -129,14 +129,14 @@ async function initializeModels() {
   try {
     models = await loadModels();
     if (models.length === 0) {
-      throw new Error("models.json does not list any models.");
+      throw new Error("The trees/ directory does not contain any decision tree files.");
     }
 
     solverSelect.replaceChildren();
     for (const model of models) {
       const option = document.createElement("option");
       option.value = model.file;
-      option.textContent = `${model.name} (${model.file.match(/-([0-9]+(?:\.[0-9]+)?)\.json$/)[1]})`;
+      option.textContent = `${model.name} (${model.score})`;
       solverSelect.append(option);
     }
     solverSelect.disabled = false;
