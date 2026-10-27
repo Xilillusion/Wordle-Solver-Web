@@ -99,14 +99,12 @@ select:focus-visible {
   outline-offset: 3px;
 }
 
-.primary,
 .submit {
   border-color: #16865b;
   background: #16865b;
   color: #fff;
 }
 
-.primary:hover,
 .submit:not(:disabled):hover {
   background: #106c49;
 }

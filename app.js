@@ -4,7 +4,6 @@ const WIN_RESULT = 242;
 const treeDirectory = new URL("./trees/", document.currentScript.src);
 
 const solverSelect = document.querySelector("#solver");
-const startButton = document.querySelector("#start");
 const submitButton = document.querySelector("#submit");
 const attemptLabel = document.querySelector("#attempt");
 const guessContainer = document.querySelector("#guess");
@@ -15,6 +14,7 @@ let activeSolver = null;
 let models = [];
 let attempt = 0;
 let finished = false;
+let modelLoadId = 0;
 
 function setStatus(message, isError = false) {
   statusLabel.textContent = message;
@@ -46,16 +46,25 @@ function feedbackResult() {
 }
 
 function renderGuess(guess) {
-  guessContainer.replaceChildren();
+  let tiles = [...guessContainer.querySelectorAll(".tile")];
 
-  for (let index = 0; index < guess.length; index += 1) {
-    const tile = document.createElement("button");
+  if (tiles.length !== guess.length) {
+    guessContainer.replaceChildren();
+    tiles = [];
+    for (let index = 0; index < guess.length; index += 1) {
+      const tile = document.createElement("button");
+      tile.type = "button";
+      guessContainer.append(tile);
+      tiles.push(tile);
+    }
+  }
+
+  for (const [index, tile] of tiles.entries()) {
     tile.type = "button";
     tile.className = "tile gray";
     tile.textContent = guess[index];
     tile.dataset.color = "gray";
     updateTileLabel(tile, index);
-    guessContainer.append(tile);
   }
 }
 
@@ -88,19 +97,45 @@ async function loadModels() {
   }
 
   const response = await fetch(treeDirectory);
-  if (!response.ok) {
-    throw new Error(`Could not list decision trees (HTTP ${response.status}).`);
+  if (response.ok) {
+    const listing = new DOMParser().parseFromString(await response.text(), "text/html");
+    const files = [...listing.querySelectorAll("a[href]")].flatMap((link) => {
+      const url = new URL(link.getAttribute("href"), response.url);
+      return url.origin === treeDirectory.origin && url.pathname.startsWith(treeDirectory.pathname)
+        ? [url.pathname.slice(treeDirectory.pathname.length)]
+        : [];
+    });
+    const models = modelsFromFiles(files);
+    if (models.length > 0) {
+      return models;
+    }
   }
 
-  const listing = new DOMParser().parseFromString(await response.text(), "text/html");
-  const models = new Map();
-  for (const link of listing.querySelectorAll("a[href]")) {
-    const url = new URL(link.getAttribute("href"), response.url);
-    if (url.origin !== treeDirectory.origin || !url.pathname.startsWith(treeDirectory.pathname)) {
-      continue;
-    }
+  const repositoryUrl = document.querySelector("#source-repository").href;
+  const repository = new URL(repositoryUrl);
+  const [owner, name] = repository.pathname.split("/").filter(Boolean);
+  const apiUrl = new URL(`https://api.github.com/repos/${owner}/${name}/contents/trees`);
+  const apiResponse = await fetch(apiUrl);
+  if (!apiResponse.ok) {
+    throw new Error(`Could not load decision tree files from GitHub (HTTP ${apiResponse.status}).`);
+  }
 
-    const file = url.pathname.slice(treeDirectory.pathname.length);
+  const contents = await apiResponse.json();
+  if (!Array.isArray(contents) || !contents.every(
+    (item) => item !== null
+      && typeof item === "object"
+      && typeof item.name === "string"
+      && typeof item.type === "string",
+  )) {
+    throw new Error("GitHub returned an invalid decision tree file listing.");
+  }
+
+  return modelsFromFiles(contents.filter(({ type }) => type === "file").map(({ name: file }) => file));
+}
+
+function modelsFromFiles(files) {
+  const models = new Map();
+  for (const file of files) {
     const match = file.match(/^([A-Za-z0-9]+)-([0-9]+(?:\.[0-9]+)?)\.json$/);
     if (match) {
       models.set(file, { name: match[1], file, score: Number(match[2]) });
@@ -140,31 +175,35 @@ async function initializeModels() {
       solverSelect.append(option);
     }
     solverSelect.disabled = false;
+    await startGame();
   } catch (error) {
     setStatus(errorMessage(error), true);
   }
 }
 
 async function startGame() {
-  startButton.disabled = true;
-  submitButton.disabled = true;
-  setStatus("");
+  const loadId = ++modelLoadId;
 
   try {
     const model = models.find(({ file }) => file === solverSelect.value);
     if (!model) {
       throw new Error("Select an available decision tree.");
     }
-    currentNode = await loadTree(model);
+    const root = await loadTree(model);
+    if (loadId !== modelLoadId) {
+      return;
+    }
+
+    currentNode = root;
     activeSolver = model.name;
     attempt = 1;
     finished = false;
     renderCurrentNode();
+    setStatus("");
   } catch (error) {
-    setStatus(errorMessage(error), true);
-  } finally {
-    startButton.disabled = false;
-    submitButton.disabled = currentNode === null || finished;
+    if (loadId === modelLoadId) {
+      setStatus(errorMessage(error), true);
+    }
   }
 }
 
@@ -207,6 +246,6 @@ function submitFeedback() {
 }
 
 guessContainer.addEventListener("click", cycleTileColor);
-startButton.addEventListener("click", startGame);
+solverSelect.addEventListener("change", startGame);
 submitButton.addEventListener("click", submitFeedback);
 initializeModels();
